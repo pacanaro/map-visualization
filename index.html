@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Visualization with Google Maps</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBrK6DHWqdvH9EwNAZ5UIpwD_iAn0rtqxE&libraries=places"></script>
+    <style>
+        #map {
+            height: 80%;
+            width: 100%;
+        }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #controls {
+            padding: 10px;
+            background: white;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            width: 90%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        #origin-input, #destination-input {
+            width: 60%;
+            padding: 10px;
+            font-size: 14px;
+            margin: 10px;
+        }
+        #add-destination {
+            padding: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <input id="origin-input" type="text" placeholder="Enter origin location">
+        <button id="add-destination">+ Add Destination</button>
+    </div>
+    <div id="map"></div>
+
+    <script>
+        let map;
+        let directionsService;
+        let directionsRenderer;
+        let originPlaceId = null;
+        const destinationPlaceIds = [];
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 13,
+                center: { lat: 40.7128, lng: -74.0060 } // Default center: New York City
+            });
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer();
+            directionsRenderer.setMap(map);
+
+            const originInput = document.getElementById('origin-input');
+            const originAutocomplete = new google.maps.places.Autocomplete(originInput);
+            originAutocomplete.setFields(['place_id']);
+
+            originAutocomplete.addListener('place_changed', function () {
+                const place = originAutocomplete.getPlace();
+                if (!place.place_id) {
+                    window.alert("Please select an option from the dropdown list.");
+                    return;
+                }
+                originPlaceId = place.place_id;
+                calculateAndDisplayRoute();
+            });
+
+            document.getElementById('add-destination').addEventListener('click', () => {
+                const destinationInput = document.createElement('input');
+                destinationInput.type = 'text';
+                destinationInput.placeholder = 'Enter destination';
+                destinationInput.className = 'destination-input';
+                destinationInput.style.width = '60%';
+                destinationInput.style.padding = '10px';
+                destinationInput.style.fontSize = '14px';
+                destinationInput.style.margin = '10px';
+
+                document.getElementById('controls').appendChild(destinationInput);
+
+                const destinationAutocomplete = new google.maps.places.Autocomplete(destinationInput);
+                destinationAutocomplete.setFields(['place_id']);
+
+                destinationAutocomplete.addListener('place_changed', function () {
+                    const place = destinationAutocomplete.getPlace();
+                    if (!place.place_id) {
+                        window.alert("Please select an option from the dropdown list.");
+                        return;
+                    }
+                    destinationPlaceIds.push(place.place_id);
+                    calculateAndDisplayRoute();
+                });
+            });
+        }
+
+        function calculateAndDisplayRoute() {
+            if (!originPlaceId || destinationPlaceIds.length === 0) {
+                return;
+            }
+
+            const waypts = destinationPlaceIds.slice(0, destinationPlaceIds.length - 1).map(placeId => ({
+                location: { placeId: placeId },
+                stopover: true
+            }));
+
+            const finalDestination = destinationPlaceIds[destinationPlaceIds.length - 1];
+
+            directionsService.route({
+                origin: { 'placeId': originPlaceId },
+                destination: { 'placeId': finalDestination },
+                waypoints: waypts,
+                travelMode: google.maps.TravelMode.DRIVING
+            }, (response, status) => {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(response);
+                } else {
+                    window.alert('Directions request failed due to ' + status);
+                }
+            });
+        }
+
+        google.maps.event.addDomListener(window, 'load', initMap);
+    </script>
+</body>
+</html>
